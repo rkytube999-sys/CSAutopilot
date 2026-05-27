@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - qdrant
+    volumes:
+      - ./knowledge_base:/app/knowledge_base
+      - ./backend/app:/app/app
+    networks:
+      - csa-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - csa-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - csa-network
+
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+    networks:
+      - csa-network
+
+  # Optional: PostgreSQL for persistent logs
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: csa
+      POSTGRES_USER: csa
+      POSTGRES_PASSWORD: csa
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - csa-network
+
+networks:
+  csa-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
