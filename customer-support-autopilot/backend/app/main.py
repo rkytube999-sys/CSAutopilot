@@ -76,15 +76,39 @@ def create_app() -> FastAPI:
     async def get_stats(api_key: str):
         """Get analytics stats for dashboard."""
         if api_key != settings.admin_api_key:
-            return {"error": "Unauthorized"}, 401
+            raise HTTPException(status_code=401, detail="Unauthorized")
         
-        # Return mock stats for now - will be implemented with actual data
-        return {
-            "total_conversations": 0,
-            "auto_resolution_rate": 0.0,
-            "cost_per_resolution": 0.0,
-            "recent_escalations": [],
-        }
+        try:
+            # Get real analytics from database
+            from app.core.fallback import get_analytics, get_recent_escalations
+            
+            analytics = await get_analytics()
+            escalations = await get_recent_escalations(limit=10)
+            
+            # Format escalations (remove sensitive data)
+            formatted_escalations = [
+                {
+                    "ticket_id": e["id"],
+                    "session_id": e["session_id"],
+                    "intent": e["intent"],
+                    "sentiment": e["sentiment"],
+                    "created_at": e["created_at"],
+                    "status": e["status"],
+                }
+                for e in escalations
+            ]
+            
+            return {
+                "total_conversations": analytics["total_conversations"],
+                "auto_resolution_rate": analytics["auto_resolution_rate"],
+                "cost_per_resolution": analytics["cost_per_resolution"],
+                "total_tokens_used": analytics["total_tokens_used"],
+                "estimated_cost": analytics["estimated_cost"],
+                "recent_escalations": formatted_escalations,
+            }
+        except Exception as e:
+            logger.error(f"Failed to get stats: {e}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve analytics")
 
     return app
 

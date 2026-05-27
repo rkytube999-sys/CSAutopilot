@@ -11,6 +11,10 @@ from typing import List, Dict, Any, Optional
 
 from app.config import get_settings
 from app.integrations.vector_db import get_vector_client, embed_text
+from app.integrations.embeddings import embed_text as semantic_embed_text
+
+# Use semantic embeddings when available
+embed_text = semantic_embed_text
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
